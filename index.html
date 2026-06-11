@@ -24,7 +24,14 @@
     }
     body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
     .wrap { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; }
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+      display: none; flex-shrink: 0;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .live-dot.on { display: inline-block; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
     .label { font-size: 13px; color: var(--text2); margin-bottom: 6px; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -43,24 +50,38 @@
     button:hover { background: var(--bg2); }
     button:active { transform: scale(0.98); }
     button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+    .meta-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    #saved-badge { font-size: 12px; color: var(--success); display: none; align-items: center; gap: 4px; }
+    #saved-badge i { font-size: 14px; }
+    #clear-btn { height: 28px; padding: 0 10px; font-size: 12px; color: var(--text2); border-color: var(--border); display: none; }
     .hint { font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.6; }
     .hint code { background: var(--bg2); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
-    #saved-badge {
-      font-size: 12px; color: var(--success);
-      display: none; align-items: center; gap: 4px; margin-top: 8px;
-    }
-    #saved-badge i { font-size: 14px; }
-    #clear-btn-wrap { margin-top: 6px; display: none; }
-    #clear-btn { height: 28px; padding: 0 10px; font-size: 12px; color: var(--text2); border-color: var(--border); }
     #error-msg { font-size: 13px; color: var(--danger); margin-top: 8px; display: none; }
     #status { font-size: 13px; color: var(--text2); padding: 3rem 0; text-align: center; }
+
+    /* countdown bar */
+    #countdown-wrap { display: none; align-items: center; gap: 10px; margin-bottom: 1rem; font-size: 12px; color: var(--text2); }
+    #countdown-wrap.on { display: flex; }
+    #countdown-bar-bg { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    #countdown-bar { height: 100%; background: var(--accent); border-radius: 2px; width: 100%; transition: width 1s linear; }
+    #countdown-label { min-width: 60px; text-align: right; }
+
     #viewer { display: none; }
     #main-img-wrap {
       background: var(--bg2); border: 0.5px solid var(--border);
       border-radius: var(--rl); display: flex; align-items: center;
       justify-content: center; min-height: 320px; margin-bottom: 1rem; overflow: hidden;
+      position: relative;
     }
     #main-img { max-width: 100%; max-height: 520px; display: block; border-radius: var(--r); }
+    #new-badge {
+      position: absolute; top: 12px; right: 12px;
+      background: var(--success); color: #fff;
+      font-size: 11px; font-weight: 500; padding: 3px 10px;
+      border-radius: 20px; display: none;
+      animation: fadein 0.4s ease;
+    }
+    @keyframes fadein { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
     #nav-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
     #img-info { text-align: center; }
     #display-time { font-size: 14px; font-weight: 500; }
@@ -74,11 +95,16 @@
     }
     .thumb:hover { border-color: var(--border2); }
     .thumb.active { border-color: var(--accent); }
+    .thumb.new-thumb { border-color: var(--success); }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h1><i class="ti ti-photo" aria-hidden="true"></i> Image Viewer</h1>
+  <h1>
+    <i class="ti ti-photo" aria-hidden="true"></i>
+    Image Viewer
+    <span class="live-dot" id="live-dot" title="กำลังอัปเดตอัตโนมัติ"></span>
+  </h1>
 
   <div class="card">
     <p class="label">วาง URL ของ Google Sheet</p>
@@ -86,9 +112,9 @@
       <input type="text" id="sheet-url" placeholder="วาง URL ของ Google Sheet ที่นี่" />
       <button onclick="loadSheet()"><i class="ti ti-refresh" aria-hidden="true"></i> โหลด</button>
     </div>
-    <div id="saved-badge"><i class="ti ti-device-floppy" aria-hidden="true"></i> จำ URL นี้ไว้แล้ว — โหลดอัตโนมัติครั้งต่อไป</div>
-    <div id="clear-btn-wrap">
-      <button id="clear-btn" onclick="clearSaved()"><i class="ti ti-x" aria-hidden="true"></i> ลบ URL ที่บันทึกไว้</button>
+    <div class="meta-row">
+      <div id="saved-badge"><i class="ti ti-device-floppy" aria-hidden="true"></i> จำ URL นี้ไว้แล้ว</div>
+      <button id="clear-btn" onclick="clearSaved()"><i class="ti ti-x" aria-hidden="true"></i> ลบ URL ที่บันทึก</button>
     </div>
     <p class="hint">
       รองรับ URL ปกติ (<code>.../spreadsheets/d/ID/edit</code>)<br>
@@ -97,12 +123,22 @@
     <p id="error-msg"></p>
   </div>
 
+  <!-- countdown bar -->
+  <div id="countdown-wrap">
+    <span id="countdown-label">รีเฟรชใน 30s</span>
+    <div id="countdown-bar-bg"><div id="countdown-bar"></div></div>
+    <button id="refresh-now-btn" onclick="refreshNow()" style="height:28px;padding:0 10px;font-size:12px;">
+      <i class="ti ti-refresh" aria-hidden="true"></i> ดึงเดี๋ยวนี้
+    </button>
+  </div>
+
   <div id="status">วาง URL แล้วกด โหลด เพื่อแสดงรูปภาพ</div>
 
   <div id="viewer">
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:1rem;">
       <div id="main-img-wrap">
         <img id="main-img" src="" alt="รูปภาพที่เลือก" />
+        <div id="new-badge">รูปใหม่!</div>
       </div>
     </div>
     <div id="nav-bar">
@@ -122,27 +158,30 @@
 
 <script>
 const STORAGE_KEY = 'image_viewer_url';
+const REFRESH_SEC = 30;
 let rows = [], current = 0;
+let refreshTimer = null, countdownTimer = null, countdownLeft = REFRESH_SEC;
+let lastTopTime = null;
 
-// โหลด URL ที่บันทึกไว้เมื่อเปิดหน้า
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     document.getElementById('sheet-url').value = saved;
-    showSavedBadge(true);
+    showSavedUI(true);
     loadSheet(true);
   }
 });
 
-function showSavedBadge(show) {
+function showSavedUI(show) {
   document.getElementById('saved-badge').style.display = show ? 'flex' : 'none';
-  document.getElementById('clear-btn-wrap').style.display = show ? 'block' : 'none';
+  document.getElementById('clear-btn').style.display = show ? 'flex' : 'none';
 }
 
 function clearSaved() {
   localStorage.removeItem(STORAGE_KEY);
   document.getElementById('sheet-url').value = '';
-  showSavedBadge(false);
+  showSavedUI(false);
+  stopAutoRefresh();
   document.getElementById('viewer').style.display = 'none';
   document.getElementById('status').style.display = 'block';
   document.getElementById('status').textContent = 'วาง URL แล้วกด โหลด เพื่อแสดงรูปภาพ';
@@ -151,20 +190,15 @@ function clearSaved() {
 function parseUrl(raw) {
   raw = raw.trim();
   const pubMatch = raw.match(/spreadsheets\/d\/e\/([^\/]+)\//);
-  if (pubMatch) {
-    return { type: 'csv', url: `https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?output=csv` };
-  }
+  if (pubMatch) return { type: 'csv', url: `https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?output=csv` };
   const idMatch = raw.match(/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/);
-  if (idMatch) {
-    return { type: 'gviz', url: `https://docs.google.com/spreadsheets/d/${idMatch[1]}/gviz/tq?tqx=out:json` };
-  }
+  if (idMatch) return { type: 'gviz', url: `https://docs.google.com/spreadsheets/d/${idMatch[1]}/gviz/tq?tqx=out:json` };
   return null;
 }
 
 async function loadSheet(auto = false) {
   const raw = document.getElementById('sheet-url').value;
   const errEl = document.getElementById('error-msg');
-  const statusEl = document.getElementById('status');
   errEl.style.display = 'none';
 
   const parsed = parseUrl(raw);
@@ -174,39 +208,77 @@ async function loadSheet(auto = false) {
     return;
   }
 
-  statusEl.style.display = 'block';
-  statusEl.textContent = 'กำลังโหลดข้อมูล...';
-  document.getElementById('viewer').style.display = 'none';
+  if (!auto) {
+    document.getElementById('status').style.display = 'block';
+    document.getElementById('status').textContent = 'กำลังโหลดข้อมูล...';
+    document.getElementById('viewer').style.display = 'none';
+  }
 
   try {
-    if (parsed.type === 'csv') {
-      await loadCsv(parsed.url);
-    } else {
-      await loadGviz(parsed.url);
-    }
-    // บันทึก URL หลังโหลดสำเร็จ
+    const newRows = parsed.type === 'csv' ? await fetchCsv(parsed.url) : await fetchGviz(parsed.url);
+    newRows.reverse();
+
+    const prevTopTime = lastTopTime;
+    const isNew = newRows.length > 0 && newRows[0].time !== prevTopTime;
+
+    rows = newRows;
+    lastTopTime = rows.length > 0 ? rows[0].time : null;
+
     localStorage.setItem(STORAGE_KEY, raw.trim());
-    showSavedBadge(true);
+    showSavedUI(true);
+
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('viewer').style.display = 'block';
+
+    if (isNew && auto) {
+      // มีรูปใหม่ — กระโดดไปรูปล่าสุดและแสดง badge
+      current = 0;
+      renderThumbs();
+      showImage(0);
+      showNewBadge();
+    } else if (!auto) {
+      current = 0;
+      renderThumbs();
+      showImage(0);
+    } else {
+      // ไม่มีรูปใหม่ — แค่ update thumb grid เฉยๆ ไม่เปลี่ยนรูปที่ดูอยู่
+      renderThumbs();
+    }
+
+    startAutoRefresh();
+    document.getElementById('live-dot').classList.add('on');
   } catch (e) {
-    statusEl.style.display = 'none';
-    errEl.textContent = 'โหลดไม่สำเร็จ — ตรวจสอบว่า Sheet เป็น Public และ URL ถูกต้อง';
-    errEl.style.display = 'block';
-    if (auto) showSavedBadge(false);
+    if (!auto) {
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('error-msg').textContent = 'โหลดไม่สำเร็จ — ตรวจสอบว่า Sheet เป็น Public และ URL ถูกต้อง';
+      document.getElementById('error-msg').style.display = 'block';
+    }
   }
 }
 
-async function loadCsv(url) {
-  const res = await fetch(url);
+async function fetchCsv(url) {
+  const res = await fetch(url + '&t=' + Date.now());
   const text = await res.text();
   const lines = text.trim().split('\n');
-  rows = [];
+  const result = [];
   for (let i = 0; i < lines.length; i++) {
     const parts = splitCsv(lines[i]);
     if (parts.length >= 2 && parts[1].trim()) {
-      rows.push({ time: parts[0].trim().replace(/^"|"$/g, ''), base64: parts[1].trim().replace(/^"|"$/g, '') });
+      result.push({ time: parts[0].trim().replace(/^"|"$/g, ''), base64: parts[1].trim().replace(/^"|"$/g, '') });
     }
   }
-  finalize();
+  return result;
+}
+
+async function fetchGviz(url) {
+  const res = await fetch(url + '&t=' + Date.now());
+  const text = await res.text();
+  const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+  const tableRows = json.table.rows;
+  if (!tableRows || tableRows.length === 0) return [];
+  return tableRows
+    .filter(r => r.c && r.c[1] && r.c[1].v)
+    .map(r => ({ time: r.c[0] ? (r.c[0].f || r.c[0].v || '') : '', base64: r.c[1].v }));
 }
 
 function splitCsv(line) {
@@ -222,29 +294,44 @@ function splitCsv(line) {
   return result;
 }
 
-async function loadGviz(url) {
-  const res = await fetch(url);
-  const text = await res.text();
-  const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-  const tableRows = json.table.rows;
-  if (!tableRows || tableRows.length === 0) throw new Error('no rows');
-  rows = tableRows
-    .filter(r => r.c && r.c[1] && r.c[1].v)
-    .map(r => ({ time: r.c[0] ? (r.c[0].f || r.c[0].v || '') : '', base64: r.c[1].v }));
-  finalize();
+function startAutoRefresh() {
+  stopAutoRefresh();
+  countdownLeft = REFRESH_SEC;
+  updateCountdown();
+  document.getElementById('countdown-wrap').classList.add('on');
+
+  countdownTimer = setInterval(() => {
+    countdownLeft--;
+    updateCountdown();
+    if (countdownLeft <= 0) {
+      countdownLeft = REFRESH_SEC;
+      loadSheet(true);
+    }
+  }, 1000);
 }
 
-function finalize() {
-  rows.reverse();
-  if (rows.length === 0) {
-    document.getElementById('status').textContent = 'ไม่พบรูปภาพใน Sheet';
-    return;
-  }
-  current = 0;
-  document.getElementById('status').style.display = 'none';
-  document.getElementById('viewer').style.display = 'block';
-  renderThumbs();
-  showImage(0);
+function stopAutoRefresh() {
+  clearInterval(countdownTimer);
+  clearInterval(refreshTimer);
+  document.getElementById('countdown-wrap').classList.remove('on');
+  document.getElementById('live-dot').classList.remove('on');
+}
+
+function updateCountdown() {
+  document.getElementById('countdown-label').textContent = `รีเฟรชใน ${countdownLeft}s`;
+  const pct = (countdownLeft / REFRESH_SEC) * 100;
+  document.getElementById('countdown-bar').style.width = pct + '%';
+}
+
+function refreshNow() {
+  countdownLeft = REFRESH_SEC;
+  loadSheet(true);
+}
+
+function showNewBadge() {
+  const badge = document.getElementById('new-badge');
+  badge.style.display = 'block';
+  setTimeout(() => { badge.style.display = 'none'; }, 4000);
 }
 
 function getImgSrc(b64) {
@@ -276,10 +363,11 @@ function navigate(dir) {
 
 function renderThumbs() {
   const grid = document.getElementById('thumb-grid');
+  const prevCount = grid.children.length;
   grid.innerHTML = '';
   rows.forEach((row, i) => {
     const img = document.createElement('img');
-    img.className = 'thumb' + (i === 0 ? ' active' : '');
+    img.className = 'thumb' + (i === current ? ' active' : '') + (i === 0 && rows.length > prevCount && prevCount > 0 ? ' new-thumb' : '');
     img.src = getImgSrc(row.base64);
     img.alt = `รูปที่ ${i + 1}`;
     img.title = row.time || `รูปที่ ${i + 1}`;
