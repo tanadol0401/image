@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image Viewer — Google Sheets</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg2: #f5f5f3; --bg3: #efefed;
+      --text: #1a1a18; --text2: #6b6b67;
+      --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+      --accent: #378ADD; --danger: #c0392b;
+      --r: 8px; --rl: 12px; --font: system-ui,-apple-system,sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1c; --bg2: #2a2a28; --bg3: #333330;
+        --text: #f0efe8; --text2: #9a9a94;
+        --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.20);
+        --accent: #5ba3e8; --danger: #e05c5c;
+      }
+    }
+    body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; }
+    .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .label { font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    input[type="text"] {
+      flex: 1; min-width: 160px; height: 36px; padding: 0 10px; font-size: 13px;
+      font-family: var(--font); background: var(--bg2);
+      border: 0.5px solid var(--border2); border-radius: var(--r);
+      color: var(--text); outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
+    button {
+      height: 36px; padding: 0 14px; font-size: 13px; font-family: var(--font);
+      background: transparent; border: 0.5px solid var(--border2); border-radius: var(--r);
+      color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    button:hover { background: var(--bg2); }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+    .hint { font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.6; }
+    .hint code { background: var(--bg2); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+    #error-msg { font-size: 13px; color: var(--danger); margin-top: 8px; display: none; }
+    #status { font-size: 13px; color: var(--text2); padding: 3rem 0; text-align: center; }
+    #viewer { display: none; }
+    #main-img-wrap {
+      background: var(--bg2); border: 0.5px solid var(--border);
+      border-radius: var(--rl); display: flex; align-items: center;
+      justify-content: center; min-height: 320px; margin-bottom: 1rem; overflow: hidden;
+    }
+    #main-img { max-width: 100%; max-height: 520px; display: block; border-radius: var(--r); }
+    #nav-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    #img-info { text-align: center; }
+    #display-time { font-size: 14px; font-weight: 500; }
+    #display-index { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .thumb-label { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+    #thumb-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+    .thumb {
+      width: 64px; height: 64px; border-radius: var(--r);
+      border: 2px solid transparent; object-fit: cover; cursor: pointer;
+      background: var(--bg2); transition: border-color 0.15s;
+    }
+    .thumb:hover { border-color: var(--border2); }
+    .thumb.active { border-color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1><i class="ti ti-photo" aria-hidden="true"></i> Image Viewer</h1>
+
+  <div class="card">
+    <p class="label">วาง URL ของ Google Sheet</p>
+    <div class="row">
+      <input type="text" id="sheet-url" placeholder="วาง URL ของ Google Sheet ที่นี่" />
+      <button onclick="loadSheet()"><i class="ti ti-refresh" aria-hidden="true"></i> โหลด</button>
+    </div>
+    <p class="hint">
+      รองรับ URL ปกติ (<code>.../spreadsheets/d/ID/edit</code>)<br>
+      และ Published URL (<code>.../pub?output=csv</code> หรือ <code>/pubhtml</code>)
+    </p>
+    <p id="error-msg"></p>
+  </div>
+
+  <div id="status">วาง URL แล้วกด โหลด เพื่อแสดงรูปภาพ</div>
+
+  <div id="viewer">
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:1rem;">
+      <div id="main-img-wrap">
+        <img id="main-img" src="" alt="รูปภาพที่เลือก" />
+      </div>
+    </div>
+    <div id="nav-bar">
+      <button id="prev-btn" onclick="navigate(-1)"><i class="ti ti-arrow-left" aria-hidden="true"></i> ก่อนหน้า</button>
+      <div id="img-info">
+        <div id="display-time">—</div>
+        <div id="display-index">—</div>
+      </div>
+      <button id="next-btn" onclick="navigate(1)">ถัดไป <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+    <div class="card">
+      <p class="thumb-label">ประวัติรูปภาพทั้งหมด (ล่าสุดก่อน)</p>
+      <div id="thumb-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let rows = [], current = 0;
+
+function parseUrl(raw) {
+  raw = raw.trim();
+  const pubMatch = raw.match(/spreadsheets\/d\/e\/([^\/]+)\//);
+  if (pubMatch) {
+    return { type: 'csv', url: `https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?output=csv` };
+  }
+  const idMatch = raw.match(/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (idMatch) {
+    return { type: 'gviz', url: `https://docs.google.com/spreadsheets/d/${idMatch[1]}/gviz/tq?tqx=out:json` };
+  }
+  return null;
+}
+
+async function loadSheet() {
+  const raw = document.getElementById('sheet-url').value;
+  const errEl = document.getElementById('error-msg');
+  const statusEl = document.getElementById('status');
+  errEl.style.display = 'none';
+
+  const parsed = parseUrl(raw);
+  if (!parsed) {
+    errEl.textContent = 'URL ไม่ถูกต้อง กรุณาวาง URL ของ Google Sheet';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'กำลังโหลดข้อมูล...';
+  document.getElementById('viewer').style.display = 'none';
+
+  try {
+    if (parsed.type === 'csv') {
+      await loadCsv(parsed.url);
+    } else {
+      await loadGviz(parsed.url);
+    }
+  } catch (e) {
+    statusEl.style.display = 'none';
+    errEl.textContent = 'โหลดไม่สำเร็จ — ตรวจสอบว่า Sheet เป็น Public และ URL ถูกต้อง';
+    errEl.style.display = 'block';
+  }
+}
+
+async function loadCsv(url) {
+  const res = await fetch(url);
+  const text = await res.text();
+  const lines = text.trim().split('\n');
+  rows = [];
+  for (let i = 0; i < lines.length; i++) {
+    const parts = splitCsv(lines[i]);
+    if (parts.length >= 2 && parts[1].trim()) {
+      rows.push({ time: parts[0].trim().replace(/^"|"$/g, ''), base64: parts[1].trim().replace(/^"|"$/g, '') });
+    }
+  }
+  finalize();
+}
+
+function splitCsv(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+async function loadGviz(url) {
+  const res = await fetch(url);
+  const text = await res.text();
+  const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+  const tableRows = json.table.rows;
+  if (!tableRows || tableRows.length === 0) throw new Error('no rows');
+  rows = tableRows
+    .filter(r => r.c && r.c[1] && r.c[1].v)
+    .map(r => ({ time: r.c[0] ? (r.c[0].f || r.c[0].v || '') : '', base64: r.c[1].v }));
+  finalize();
+}
+
+function finalize() {
+  rows.reverse();
+  if (rows.length === 0) {
+    document.getElementById('status').textContent = 'ไม่พบรูปภาพใน Sheet';
+    return;
+  }
+  current = 0;
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('viewer').style.display = 'block';
+  renderThumbs();
+  showImage(0);
+}
+
+function getImgSrc(b64) {
+  if (!b64) return '';
+  if (b64.startsWith('data:')) return b64;
+  // ตรวจสอบ magic bytes เพื่อระบุประเภทรูป
+  const head = b64.substring(0, 8);
+  if (head.startsWith('/9j/')) return 'data:image/jpeg;base64,' + b64;
+  if (head.startsWith('iVBORw0K')) return 'data:image/png;base64,' + b64;
+  if (head.startsWith('R0lGOD')) return 'data:image/gif;base64,' + b64;
+  if (head.startsWith('UklGR')) return 'data:image/webp;base64,' + b64;
+  // fallback เป็น jpeg
+  return 'data:image/jpeg;base64,' + b64;
+}
+
+function showImage(idx) {
+  current = idx;
+  const row = rows[idx];
+  document.getElementById('main-img').src = getImgSrc(row.base64);
+  document.getElementById('display-time').textContent = row.time || '(ไม่มีเวลา)';
+  document.getElementById('display-index').textContent = `รูปที่ ${idx + 1} จาก ${rows.length}`;
+  document.getElementById('prev-btn').disabled = idx >= rows.length - 1;
+  document.getElementById('next-btn').disabled = idx <= 0;
+  document.querySelectorAll('.thumb').forEach((t, i) => t.classList.toggle('active', i === idx));
+}
+
+function navigate(dir) {
+  const next = current - dir;
+  if (next >= 0 && next < rows.length) showImage(next);
+}
+
+function renderThumbs() {
+  const grid = document.getElementById('thumb-grid');
+  grid.innerHTML = '';
+  rows.forEach((row, i) => {
+    const img = document.createElement('img');
+    img.className = 'thumb' + (i === 0 ? ' active' : '');
+    img.src = getImgSrc(row.base64);
+    img.alt = `รูปที่ ${i + 1}`;
+    img.title = row.time || `รูปที่ ${i + 1}`;
+    img.onclick = () => showImage(i);
+    grid.appendChild(img);
+  });
+}
+
+document.getElementById('sheet-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadSheet();
+});
+</script>
+</body>
+</html>
