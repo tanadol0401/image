@@ -125,7 +125,7 @@
 
   <!-- countdown bar -->
   <div id="countdown-wrap">
-    <span id="countdown-label">รีเฟรชใน 30s</span>
+    <span id="countdown-label">รีเฟรชใน 10s</span>
     <div id="countdown-bar-bg"><div id="countdown-bar"></div></div>
     <button id="refresh-now-btn" onclick="refreshNow()" style="height:28px;padding:0 10px;font-size:12px;">
       <i class="ti ti-refresh" aria-hidden="true"></i> ดึงเดี๋ยวนี้
@@ -158,7 +158,7 @@
 
 <script>
 const STORAGE_KEY = 'image_viewer_url';
-const REFRESH_SEC = 30;
+const REFRESH_SEC = 10;
 let rows = [], current = 0;
 let refreshTimer = null, countdownTimer = null, countdownLeft = REFRESH_SEC;
 let lastTopTime = null;
